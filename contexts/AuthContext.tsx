@@ -31,6 +31,7 @@ interface AuthContextType {
   updateUser: (name: string, email: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateAvatar: (avatarUrl: string | null) => Promise<void>;
+  resetPassword: (email: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return reject(err);
         }
 
-        if (user.password !== password) {
+        if (user.password !== password.trim()) {
           const err = new Error('The password you entered is incorrect.');
           console.error(`Login attempt failed for email ${trimmedEmail}: incorrect password.`, err);
           return reject(err);
@@ -94,7 +95,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.error(`Signup failed: email ${trimmedEmail} already exists.`);
           return reject(new Error('An account with this email already exists.'));
         }
-        const newUser: UserWithPassword = { name: name.trim(), email: trimmedEmail, password, avatarUrl: undefined };
+        const newUser: UserWithPassword = { name: name.trim(), email: trimmedEmail, password: password.trim(), avatarUrl: undefined };
         const updatedUsers = [...users, newUser];
         userDB.saveUsers(updatedUsers);
         setUserSession(newUser);
@@ -176,13 +177,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             const user = users[userIndex];
-            if (user.password !== currentPassword) {
+            if (user.password !== currentPassword.trim()) {
                 const err = new Error("The current password you entered is incorrect.");
                 console.error(`Change password failed for ${currentUser.email}: incorrect current password.`);
                 return reject(err);
             }
 
-            user.password = newPassword;
+            user.password = newPassword.trim();
             userDB.saveUsers(users);
             resolve();
         }, 500);
@@ -219,6 +220,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  const resetPassword = async (email: string, newPassword: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => { // Simulate network delay
+            try {
+                const users = userDB.getUsers();
+                const trimmedEmail = email.trim();
+                const userIndex = users.findIndex(u => u.email.trim().toLowerCase() === trimmedEmail.toLowerCase());
+
+                if (userIndex === -1) {
+                    const err = new Error("Could not find a user with that email.");
+                    console.error(`Password reset failed: email ${trimmedEmail} not found.`, err);
+                    return reject(err);
+                }
+
+                users[userIndex].password = newPassword.trim();
+                userDB.saveUsers(users);
+                resolve();
+            } catch (err) {
+                 console.error("An unexpected error occurred during password reset:", err);
+                 reject(new Error("An unexpected error occurred. Please try again."));
+            }
+        }, 500);
+    });
+  };
+
   const value = {
     currentUser,
     loading,
@@ -230,6 +256,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateUser,
     changePassword,
     updateAvatar,
+    resetPassword,
   };
 
   return (
