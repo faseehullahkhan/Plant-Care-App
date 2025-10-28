@@ -23,6 +23,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignUp, onForgot
       await login(email, password);
       // Success state is handled by the parent App component which will re-render
     } catch (err: any) {
+      console.error("Login Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);

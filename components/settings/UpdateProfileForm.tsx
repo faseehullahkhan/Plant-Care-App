@@ -32,6 +32,7 @@ export const UpdateProfileForm: React.FC = () => {
             await updateUser(name, email);
             setSuccess('Profile updated successfully!');
         } catch (err: any) {
+            console.error("Update Profile Error:", err);
             setError(err.message);
         } finally {
             setLoading(false);

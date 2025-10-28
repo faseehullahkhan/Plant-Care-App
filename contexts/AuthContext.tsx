@@ -64,13 +64,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return new Promise((resolve, reject) => {
       setTimeout(() => { // Simulate network delay
         const users = userDB.getUsers();
-        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-        if (user) {
-          setUserSession(user);
-          resolve();
-        } else {
-          reject(new Error('Invalid email or password.'));
+        const trimmedEmail = email.trim();
+        const user = users.find(u => u.email.trim().toLowerCase() === trimmedEmail.toLowerCase());
+
+        if (!user) {
+          const err = new Error('No account found with this email address.');
+          console.error(`Login attempt failed: email ${trimmedEmail} not found.`, err);
+          return reject(err);
         }
+
+        if (user.password !== password) {
+          const err = new Error('The password you entered is incorrect.');
+          console.error(`Login attempt failed for email ${trimmedEmail}: incorrect password.`, err);
+          return reject(err);
+        }
+        
+        setUserSession(user);
+        resolve();
       }, 500);
     });
   };
@@ -79,10 +89,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return new Promise((resolve, reject) => {
        setTimeout(() => { // Simulate network delay
         const users = userDB.getUsers();
-        if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        const trimmedEmail = email.trim();
+        if (users.some(u => u.email.trim().toLowerCase() === trimmedEmail.toLowerCase())) {
+          console.error(`Signup failed: email ${trimmedEmail} already exists.`);
           return reject(new Error('An account with this email already exists.'));
         }
-        const newUser: UserWithPassword = { name, email, password, avatarUrl: undefined };
+        const newUser: UserWithPassword = { name: name.trim(), email: trimmedEmail, password, avatarUrl: undefined };
         const updatedUsers = [...users, newUser];
         userDB.saveUsers(updatedUsers);
         setUserSession(newUser);
@@ -98,7 +110,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const findUserByEmail = (email: string): User | undefined => {
     const users = userDB.getUsers();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const trimmedEmail = email.trim();
+    const user = users.find(u => u.email.trim().toLowerCase() === trimmedEmail.toLowerCase());
     if (!user) return undefined;
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
@@ -106,28 +119,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const findEmailByName = (name: string): string | undefined => {
     const users = userDB.getUsers();
-    const user = users.find(u => u.name.toLowerCase() === name.toLowerCase());
+    const trimmedName = name.trim();
+    const user = users.find(u => u.name.trim().toLowerCase() === trimmedName.toLowerCase());
     return user?.email;
   };
   
   const updateUser = async (name: string, email: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         if (!currentUser) {
-            return reject(new Error("No user is currently logged in."));
+            const err = new Error("No user is currently logged in.");
+            console.error("Update user failed:", err);
+            return reject(err);
         }
         setTimeout(() => {
             const users = userDB.getUsers();
+            const trimmedEmail = email.trim();
+            const trimmedName = name.trim();
+
             // Check if the new email is already taken by another user
-            if (users.some(u => u.email.toLowerCase() === email.toLowerCase() && u.email.toLowerCase() !== currentUser.email.toLowerCase())) {
-                return reject(new Error("This email is already in use by another account."));
+            if (users.some(u => u.email.trim().toLowerCase() === trimmedEmail.toLowerCase() && u.email.toLowerCase() !== currentUser.email.toLowerCase())) {
+                const err = new Error("This email is already in use by another account.");
+                console.error(`Update user failed for ${currentUser.email}: new email ${trimmedEmail} is taken.`);
+                return reject(err);
             }
 
             const userIndex = users.findIndex(u => u.email.toLowerCase() === currentUser.email.toLowerCase());
             if (userIndex === -1) {
-                return reject(new Error("Could not find the current user in the database."));
+                const err = new Error("Could not find the current user in the database.");
+                console.error("Update user failed:", err, currentUser);
+                return reject(err);
             }
 
-            const updatedUser = { ...users[userIndex], name, email };
+            const updatedUser = { ...users[userIndex], name: trimmedName, email: trimmedEmail };
             users[userIndex] = updatedUser;
             userDB.saveUsers(users);
             setUserSession(updatedUser);
@@ -139,18 +162,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         if (!currentUser) {
-            return reject(new Error("No user is currently logged in."));
+            const err = new Error("No user is currently logged in.");
+            console.error("Change password failed:", err);
+            return reject(err);
         }
         setTimeout(() => {
             const users = userDB.getUsers();
             const userIndex = users.findIndex(u => u.email.toLowerCase() === currentUser.email.toLowerCase());
             if (userIndex === -1) {
-                return reject(new Error("Could not find the current user."));
+                const err = new Error("Could not find the current user.");
+                console.error("Change password failed:", err, currentUser);
+                return reject(err);
             }
 
             const user = users[userIndex];
             if (user.password !== currentPassword) {
-                return reject(new Error("The current password you entered is incorrect."));
+                const err = new Error("The current password you entered is incorrect.");
+                console.error(`Change password failed for ${currentUser.email}: incorrect current password.`);
+                return reject(err);
             }
 
             user.password = newPassword;
@@ -163,20 +192,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateAvatar = async (avatarUrl: string | null): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (!currentUser) {
-        return reject(new Error("No user is currently logged in."));
+        const err = new Error("No user is currently logged in.");
+        console.error("Update avatar failed:", err);
+        return reject(err);
       }
       setTimeout(() => {
-        const users = userDB.getUsers();
-        const userIndex = users.findIndex(u => u.email.toLowerCase() === currentUser.email.toLowerCase());
-        if (userIndex === -1) {
-          return reject(new Error("Could not find the current user in the database."));
-        }
+        try {
+          const users = userDB.getUsers();
+          const userIndex = users.findIndex(u => u.email.toLowerCase() === currentUser.email.toLowerCase());
+          if (userIndex === -1) {
+            const err = new Error("Could not find the current user in the database.");
+            console.error("Update avatar failed:", err, currentUser);
+            return reject(err);
+          }
 
-        const updatedUser = { ...users[userIndex], avatarUrl: avatarUrl || undefined };
-        users[userIndex] = updatedUser;
-        userDB.saveUsers(users);
-        setUserSession(updatedUser);
-        resolve();
+          const updatedUser = { ...users[userIndex], avatarUrl: avatarUrl || undefined };
+          users[userIndex] = updatedUser;
+          userDB.saveUsers(users);
+          setUserSession(updatedUser);
+          resolve();
+        } catch (err) {
+            console.error("An unexpected error occurred while updating avatar:", err);
+            reject(new Error("An unexpected error occurred. Please try again."));
+        }
       }, 500);
     });
   };

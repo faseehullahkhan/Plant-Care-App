@@ -37,6 +37,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToLogin }) => {
       await signup(name, email, password);
       // Success state is handled by the parent App component
     } catch (err: any) {
+      console.error("Sign Up Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);

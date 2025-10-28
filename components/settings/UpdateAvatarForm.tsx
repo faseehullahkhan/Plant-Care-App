@@ -60,6 +60,7 @@ export const UpdateAvatarForm: React.FC = () => {
             setSuccess('Avatar updated!');
             setImageFile(null); // Clear the file state after saving
         } catch (err: any) {
+            console.error("Save Avatar Error:", err);
             setError(err.message || 'Failed to update avatar.');
         } finally {
             setLoading(false);
@@ -77,6 +78,7 @@ export const UpdateAvatarForm: React.FC = () => {
             setImageFile(null);
             setPreviewUrl(null);
         } catch (err: any) {
+            console.error("Remove Avatar Error:", err);
             setError(err.message || 'Failed to remove avatar.');
         } finally {
             setLoading(false);

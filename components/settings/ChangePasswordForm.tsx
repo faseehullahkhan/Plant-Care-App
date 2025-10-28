@@ -44,6 +44,7 @@ export const ChangePasswordForm: React.FC = () => {
             setConfirmPassword('');
             setPasswordStrength(checkPasswordStrength(''));
         } catch (err: any) {
+            console.error("Change Password Error:", err);
             setError(err.message);
         } finally {
             setLoading(false);
