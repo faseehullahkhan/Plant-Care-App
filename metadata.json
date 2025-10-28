@@ -1,0 +1,5 @@
+{
+  "name": "Virtual Plant Care Dashboard",
+  "description": "A simple web app that helps users track and manage the care of their indoor plants using AI-powered insights. Add your plants, get automated care information, and receive personalized tips to keep them thriving.",
+  "requestFramePermissions": []
+}
