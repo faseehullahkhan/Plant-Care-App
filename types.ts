@@ -23,3 +23,9 @@ export interface AiCareTip {
   mismatchMessage?: string;
   tips?: string[];
 }
+
+export interface User {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}
