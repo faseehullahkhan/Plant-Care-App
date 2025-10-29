@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { HeartbeatIcon, XIcon, LoaderIcon, CheckIcon, WarningIcon, ClipboardCopyIcon, ShareIcon, DownloadIcon, SparklesIcon } from './Icons';
 import { AiHealthReport, Plant } from '../types';
 import { generateReportImage } from '../../utils/imageGenerator';
@@ -84,6 +84,8 @@ export const AIHealthCheckModal: React.FC<AIHealthCheckModalProps> = ({ plant, r
   const [isCopied, setIsCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(loadingMessages[0]);
+  const [highlightedIssueIndex, setHighlightedIssueIndex] = useState<number | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   
   const isWebShareSupported = useMemo(() => {
     return typeof navigator.share === 'function';
@@ -218,7 +220,29 @@ export const AIHealthCheckModal: React.FC<AIHealthCheckModalProps> = ({ plant, r
               <div className="w-full space-y-6">
                 {/* Summary Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                    {imagePreviewUrl && <img src={imagePreviewUrl} alt={plant.name} className="rounded-lg shadow-md w-full h-64 object-cover" />}
+                    {imagePreviewUrl && (
+                        <div className="relative">
+                            <img ref={imageRef} src={imagePreviewUrl} alt={plant.name} className="rounded-lg shadow-md w-full h-auto" />
+                            {reportData.potentialIssues?.map((issue, index) => {
+                                if (!issue.boundingBox) return null;
+                                const { x1, y1, x2, y2 } = issue.boundingBox;
+                                const isHighlighted = highlightedIssueIndex === index;
+                                return (
+                                    <div
+                                        key={index}
+                                        className={`absolute border-2 rounded-sm transition-all duration-300 pointer-events-none ${isHighlighted ? 'bg-red-500/40 border-red-400 shadow-lg' : 'bg-red-500/20 border-red-500'}`}
+                                        style={{
+                                            left: `${x1 * 100}%`,
+                                            top: `${y1 * 100}%`,
+                                            width: `${(x2 - x1) * 100}%`,
+                                            height: `${(y2 - y1) * 100}%`,
+                                            boxShadow: isHighlighted ? '0 0 15px rgba(239, 68, 68, 0.8)' : 'none',
+                                        }}
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
                     <div className="flex flex-col items-center text-center md:items-start md:text-left">
                         <HealthScoreGauge score={reportData.healthScore} />
                         <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-4">Overall Assessment</h3>
@@ -240,7 +264,13 @@ export const AIHealthCheckModal: React.FC<AIHealthCheckModalProps> = ({ plant, r
                         <ReportCard title="Potential Issues to Watch" icon={<WarningIcon className="w-6 h-6 text-yellow-500"/>}>
                             <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                                 {reportData.potentialIssues.map((item, i) => (
-                                    <li key={i}>
+                                    <li
+                                        key={i}
+                                        onMouseEnter={() => setHighlightedIssueIndex(i)}
+                                        onMouseLeave={() => setHighlightedIssueIndex(null)}
+                                        className="p-2 rounded-md transition-colors duration-200 cursor-pointer"
+                                        style={{ backgroundColor: highlightedIssueIndex === i ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
+                                    >
                                         <strong className="font-medium text-gray-800 dark:text-gray-300">{item.issue}:</strong> {item.possibleCause}
                                     </li>
                                 ))}

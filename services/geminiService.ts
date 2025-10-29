@@ -115,7 +115,18 @@ const aiHealthCheckSchema = {
         type: Type.OBJECT,
         properties: {
           issue: { type: Type.STRING, description: 'The name of the observed issue. e.g., "Yellowing Leaves", "Brown Spots", "Wilting".' },
-          possibleCause: { type: Type.STRING, description: 'The likely cause of the issue. e.g., "Overwatering or nutrient deficiency", "Fungal infection or sun scorch".' }
+          possibleCause: { type: Type.STRING, description: 'The likely cause of the issue. e.g., "Overwatering or nutrient deficiency", "Fungal infection or sun scorch".' },
+          boundingBox: {
+            type: Type.OBJECT,
+            description: 'The bounding box coordinates of the issue on the image, normalized from 0 to 1. Only include if a specific area can be identified.',
+            properties: {
+              x1: { type: Type.NUMBER, description: 'Normalized top-left x-coordinate (from 0.0 to 1.0).' },
+              y1: { type: Type.NUMBER, description: 'Normalized top-left y-coordinate (from 0.0 to 1.0).' },
+              x2: { type: Type.NUMBER, description: 'Normalized bottom-right x-coordinate (from 0.0 to 1.0).' },
+              y2: { type: Type.NUMBER, description: 'Normalized bottom-right y-coordinate (from 0.0 to 1.0).' },
+            },
+            required: ['x1', 'y1', 'x2', 'y2']
+          }
         },
         required: ['issue', 'possibleCause']
       },
@@ -239,7 +250,9 @@ export const getAiHealthCheck = async (plant: Plant, imageData: {data: string; m
     text: `Act as a plant health expert. Your response must be a JSON object.
     1. **CRITICAL FIRST STEP:** Analyze the provided image and determine if it is a photo of a '${plant.name}'.
     2. **If it is NOT a match:** Respond with 'isMatch' set to 'false' and a 'mismatchMessage' string. The message should be exactly: "This photo doesn't seem to be a ${plant.name}. Please upload a picture of the correct plant for an accurate health check."
-    3. **If it IS a match:** Respond with 'isMatch' set to 'true'. Then, provide a detailed health assessment based *only* on the visual information in the photo, filling out the healthScore, overallAssessment, positiveSigns, potentialIssues, and recommendations fields.`
+    3. **If it IS a match:** Respond with 'isMatch' set to 'true'. Then, provide a detailed health assessment based *only* on the visual information in the photo.
+       - For each potential issue you identify visually (like yellow leaves, brown spots), you MUST provide a 'boundingBox' with normalized coordinates (from 0.0 to 1.0 for x and y) that outlines the area of concern on the image. If an issue is general (like wilting) and cannot be boxed, omit the 'boundingBox'.
+       - Provide highly specific 'recommendations' that directly address the identified issues. For example, instead of "check for pests", say "Inspect the undersides of leaves for small webbing, which could indicate spider mites. If found, wipe leaves with a damp cloth and apply neem oil."`
   };
 
   try {
@@ -265,6 +278,31 @@ export const getAiHealthCheck = async (plant: Plant, imageData: {data: string; m
 };
 
 
+const getPlantImage = async (plantName: string): Promise<string> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: `A vibrant, photorealistic image of a healthy ${plantName} in a simple, modern pot, against a clean, light gray background.` }]
+            },
+            config: {
+                responseModalities: [Modality.IMAGE],
+            },
+        });
+        
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+            }
+        }
+        throw new Error("No image data found in response.");
+
+    } catch (error) {
+        console.error(`Error generating image for ${plantName}:`, error);
+        return ''; 
+    }
+};
 
 export const getPopularPlants = async (): Promise<ExplorePlant[]> => {
   try {
@@ -278,8 +316,20 @@ export const getPopularPlants = async (): Promise<ExplorePlant[]> => {
     });
 
     const jsonText = response.text.trim();
-    const popularPlants = JSON.parse(jsonText);
-    return popularPlants;
+    const popularPlantsData: Omit<ExplorePlant, 'imageUrl'>[] = JSON.parse(jsonText);
+
+    const plantsWithImages = await Promise.all(
+        popularPlantsData.map(async (plant) => {
+            const imageUrl = await getPlantImage(plant.name);
+            return {
+                ...plant,
+                imageUrl,
+            };
+        })
+    );
+
+    return plantsWithImages;
+
   } catch (error) {
     console.error("Error fetching popular plants from Gemini API:", error);
     throw new Error('Failed to retrieve popular plants.');
@@ -289,35 +339,45 @@ export const getPopularPlants = async (): Promise<ExplorePlant[]> => {
 export const searchPlantByName = async (plantName: string): Promise<ExplorePlant | null> => {
     const prompt = `Find information for a plant named "${plantName}".
 - First, verify if this is a real, known plant.
-- If it is a real plant, provide its name, a short description, and care details (sunlight, watering, temperature).
-- If it is not a real plant or cannot be found, you must indicate it by setting 'plantFound' to false.`;
+- If it is a real plant, respond with JSON for the 'plantData' and set 'plantFound' to true.
+- If it is not a real plant, respond with JSON setting 'plantFound' to false.
+- CRITICAL: If the plant is found, you MUST ALSO generate a vibrant, photorealistic image of the plant in a simple pot, against a clean, light gray background.`;
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
+            model: 'gemini-2.5-flash-image',
+            contents: { parts: [{ text: prompt }] },
             config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        plantFound: {
-                            type: Type.BOOLEAN,
-                            description: "True if the plant was found, false otherwise."
-                        },
-                        plantData: {
-                            ...explorePlantInfoSchema,
-                            description: "The plant's data. Only present if plantFound is true."
-                        }
-                    },
-                    required: ['plantFound']
-                }
+                responseModalities: [Modality.IMAGE],
             }
         });
 
-        const result = JSON.parse(response.text.trim());
+        const responseText = response.text;
+        if (!responseText) {
+            console.error("Gemini API response for plant search did not contain text:", JSON.stringify(response, null, 2));
+            throw new Error("Model returned an invalid response (no text found).");
+        }
+        
+        let jsonText = responseText.trim();
+        
+        // More robust JSON extraction from markdown code blocks
+        const jsonMatch = jsonText.match(/```(json)?\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[2]) {
+            jsonText = jsonMatch[2];
+        }
+        
+        const result = JSON.parse(jsonText);
+
         if (result.plantFound && result.plantData) {
-            return result.plantData;
+            let imageUrl = '';
+            for (const part of response.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                    break;
+                }
+            }
+            
+            return { ...result.plantData, imageUrl };
         }
         return null;
     } catch (error) {

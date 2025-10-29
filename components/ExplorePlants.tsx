@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExplorePlant } from '../types';
 import { getPopularPlants, searchPlantByName } from '../services/geminiService';
-import { LoaderIcon, SunIcon, ThermometerIcon, WaterDropIcon, SearchIcon } from './Icons';
+import { LoaderIcon, SunIcon, ThermometerIcon, WaterDropIcon, SearchIcon, LeafIcon } from './Icons';
 import { ExplorePlantDetailModal } from './ExplorePlantDetailModal';
 
 interface ExplorePlantCardProps {
@@ -14,11 +14,20 @@ const ExplorePlantCard: React.FC<ExplorePlantCardProps> = ({ plant, onClick }) =
     onClick={onClick}
     className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden flex flex-col text-left w-full transition-all transform duration-300 hover:-translate-y-2 hover:shadow-2xl dark:shadow-black/20 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 border border-gray-200 dark:border-slate-700"
   >
+    <div className="relative h-48 bg-gray-100 dark:bg-slate-700">
+      {plant.imageUrl ? (
+        <img src={plant.imageUrl} alt={plant.name} className="w-full h-full object-cover" />
+      ) : (
+        <div className="flex items-center justify-center w-full h-full">
+            <LeafIcon className="w-12 h-12 text-gray-300 dark:text-slate-500" />
+        </div>
+      )}
+    </div>
     <div className="p-5">
       <h3 className="text-xl font-bold capitalize truncate text-gray-900 dark:text-white">{plant.name}</h3>
       <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm h-10">{plant.description}</p>
     </div>
-    <div className="p-5 flex flex-col flex-grow space-y-3 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-slate-800/50">
+    <div className="p-5 flex flex-col flex-grow space-y-3 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-700">
       <div className="flex items-start gap-3">
         <SunIcon className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
         <div>

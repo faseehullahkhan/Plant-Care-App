@@ -24,12 +24,20 @@ export interface ExplorePlant {
   sunlight: string;
   watering: string;
   temperature: string;
+  imageUrl: string;
 }
 
 export interface AiCareTip {
   isMatch: boolean;
   mismatchMessage?: string;
   tips?: string[];
+}
+
+export interface BoundingBox {
+  x1: number; // top-left x (normalized 0-1)
+  y1: number; // top-left y (normalized 0-1)
+  x2: number; // bottom-right x (normalized 0-1)
+  y2: number; // bottom-right y (normalized 0-1)
 }
 
 export interface AiHealthReport {
@@ -41,6 +49,7 @@ export interface AiHealthReport {
   potentialIssues?: {
     issue: string; // e.g., "Yellowing Leaves"
     possibleCause: string; // e.g., "Overwatering or nutrient deficiency"
+    boundingBox?: BoundingBox;
   }[];
   recommendations?: string[]; // Actionable recommendations
 }
