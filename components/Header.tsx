@@ -1,7 +1,9 @@
+
+
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { LeafIcon, HomeIcon, CompassIcon, MoonIcon, ThemeSunIcon, UserIcon, LogoutIcon, SettingsIcon } from './Icons';
+import { LeafIcon, HomeIcon, CompassIcon, MoonIcon, ThemeSunIcon, UserIcon, LogoutIcon, SettingsIcon, MenuIcon, XIcon } from './Icons';
 import { User } from '../types';
 
 type Page = 'dashboard' | 'explore' | 'settings';
@@ -35,6 +37,15 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (page: 
     const [isOpen, setIsOpen] = useState(false);
     const userInitial = user.name.charAt(0).toUpperCase();
 
+    const handleLogout = () => {
+        onLogout();
+    };
+
+    const handleNavigate = (page: Page) => {
+        onNavigate(page);
+        setIsOpen(false);
+    };
+
     return (
         <div className="relative">
             <button
@@ -59,7 +70,7 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (page: 
                     </div>
                     <div className="py-1" role="none">
                          <button
-                            onClick={() => { onNavigate('settings'); setIsOpen(false); }}
+                            onClick={() => handleNavigate('settings')}
                             className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
                             role="menuitem"
                         >
@@ -67,7 +78,7 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (page: 
                             <span>Profile Settings</span>
                         </button>
                         <button
-                            onClick={onLogout}
+                            onClick={handleLogout}
                             className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
                             role="menuitem"
                         >
@@ -81,51 +92,124 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (page: 
     );
 };
 
+const MobileNavLink: React.FC<{
+  onClick: () => void;
+  icon: React.ReactNode;
+  text: string;
+}> = ({ onClick, icon, text }) => (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-4 p-4 text-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-800 w-full rounded-lg"
+    >
+      {icon}
+      <span>{text}</span>
+    </button>
+);
+
 
 export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const { theme, toggleTheme } = useTheme();
   const { currentUser, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleMobileNav = (page: Page) => {
+    onNavigate(page);
+    setIsMobileMenuOpen(false);
+  };
+
 
   return (
-    <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg shadow-sm sticky top-0 z-20 transition-colors duration-500">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-                <LeafIcon className="w-8 h-8 text-green-600" />
-                <h1 className="hidden sm:block text-xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">
-                Plant Care
-                </h1>
+    <>
+      <header className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg shadow-sm sticky top-0 z-20 transition-colors duration-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                  <LeafIcon className="w-8 h-8 text-green-600" />
+                  <h1 className="hidden sm:block text-xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">
+                  Plant Care
+                  </h1>
+              </div>
+              {currentUser && (
+                  <div className="hidden sm:flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 ml-4 pl-4">
+                  <NavLink 
+                      onClick={() => onNavigate('dashboard')}
+                      isActive={currentPage === 'dashboard'}
+                      icon={<HomeIcon className="w-5 h-5" />}
+                      text="Dashboard"
+                  />
+                  <NavLink 
+                      onClick={() => onNavigate('explore')}
+                      isActive={currentPage === 'explore'}
+                      icon={<CompassIcon className="w-5 h-5" />}
+                      text="Explore"
+                  />
+                  </div>
+              )}
             </div>
-            {currentUser && (
-                <div className="hidden sm:flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 ml-4 pl-4">
-                <NavLink 
-                    onClick={() => onNavigate('dashboard')}
-                    isActive={currentPage === 'dashboard'}
-                    icon={<HomeIcon className="w-5 h-5" />}
-                    text="Dashboard"
-                />
-                <NavLink 
-                    onClick={() => onNavigate('explore')}
-                    isActive={currentPage === 'explore'}
-                    icon={<CompassIcon className="w-5 h-5" />}
-                    text="Explore"
-                />
+            <div className="flex items-center gap-3">
+              <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300"
+                  aria-label="Toggle theme"
+              >
+                  {theme === 'light' ? <MoonIcon className="w-6 h-6" /> : <ThemeSunIcon className="w-6 h-6" />}
+              </button>
+              {currentUser && <UserMenu user={currentUser} onLogout={logout} onNavigate={onNavigate} />}
+              {currentUser && (
+                <div className="sm:hidden">
+                    <button
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                        aria-label="Open main menu"
+                    >
+                        <MenuIcon className="w-6 h-6" />
+                    </button>
                 </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-                onClick={toggleTheme}
-                className="p-2 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300"
-                aria-label="Toggle theme"
-            >
-                {theme === 'light' ? <MoonIcon className="w-6 h-6" /> : <ThemeSunIcon className="w-6 h-6" />}
-            </button>
-            {currentUser && <UserMenu user={currentUser} onLogout={logout} onNavigate={onNavigate} />}
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+       {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 sm:hidden animate-fade-in" role="dialog" aria-modal="true">
+            {/* Backdrop */}
+            <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}></div>
+            
+            {/* Panel */}
+            <div className="fixed top-0 right-0 bottom-0 w-full max-w-xs bg-white dark:bg-slate-900 shadow-xl p-4 animate-slide-in-right">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-2">
+                        <LeafIcon className="w-7 h-7 text-green-600" />
+                        <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                           Plant Care
+                        </h1>
+                    </div>
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-800">
+                        <XIcon className="w-6 h-6" />
+                    </button>
+                </div>
+                <nav className="flex flex-col gap-2">
+                    <MobileNavLink 
+                        onClick={() => handleMobileNav('dashboard')}
+                        icon={<HomeIcon className="w-6 h-6" />}
+                        text="Dashboard"
+                    />
+                     <MobileNavLink 
+                        onClick={() => handleMobileNav('explore')}
+                        icon={<CompassIcon className="w-6 h-6" />}
+                        text="Explore"
+                    />
+                     <MobileNavLink 
+                        onClick={() => handleMobileNav('settings')}
+                        icon={<SettingsIcon className="w-6 h-6" />}
+                        text="Settings"
+                    />
+                </nav>
+            </div>
+        </div>
+      )}
+    </>
   );
 };

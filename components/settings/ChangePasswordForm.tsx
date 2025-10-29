@@ -60,7 +60,7 @@ export const ChangePasswordForm: React.FC = () => {
             <form onSubmit={handleSubmit}>
                 <div className="p-6 space-y-4">
                     <div>
-                        <label htmlFor="current-password"className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Current Password
                         </label>
                         <input
@@ -73,7 +73,7 @@ export const ChangePasswordForm: React.FC = () => {
                         />
                     </div>
                      <div>
-                        <label htmlFor="new-password"className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             New Password
                         </label>
                         <input
@@ -89,7 +89,7 @@ export const ChangePasswordForm: React.FC = () => {
                         </div>
                     </div>
                      <div>
-                        <label htmlFor="confirm-password"className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Confirm New Password
                         </label>
                         <input

@@ -1,3 +1,10 @@
+export interface GrowthEntry {
+  id: string;
+  date: string; // ISO date string
+  height: number; // in cm
+  notes?: string;
+}
+
 export interface Plant {
   id: string;
   name: string;
@@ -8,6 +15,7 @@ export interface Plant {
   imageUrl: string;
   wateringHistory: string[]; // Array of ISO date strings
   notes?: string; // User-specific notes
+  growthHistory?: GrowthEntry[];
 }
 
 export interface ExplorePlant {
@@ -23,6 +31,20 @@ export interface AiCareTip {
   mismatchMessage?: string;
   tips?: string[];
 }
+
+export interface AiHealthReport {
+  isMatch: boolean;
+  mismatchMessage?: string;
+  healthScore?: number; // A score from 1-100
+  overallAssessment?: string; // e.g., 'Healthy', 'Showing signs of stress'
+  positiveSigns?: string[]; // e.g., ["Vibrant green leaves", "New growth is visible"]
+  potentialIssues?: {
+    issue: string; // e.g., "Yellowing Leaves"
+    possibleCause: string; // e.g., "Overwatering or nutrient deficiency"
+  }[];
+  recommendations?: string[]; // Actionable recommendations
+}
+
 
 export interface User {
   name: string;

@@ -1,15 +1,16 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Plant, AiCareTip } from './types';
-import { getPlantCareInfo, getAiCareTip } from './services/geminiService';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Plant, AiCareTip, AiHealthReport, GrowthEntry } from './types';
+import { getPlantCareInfo, getAiHealthCheck } from './services/geminiService';
 import { PlantCard } from './components/PlantCard';
 import { AddPlantModal } from './components/AddPlantModal';
-import { AICareTipModal } from './components/AICareTipModal';
+import { AIHealthCheckModal } from './components/AIHealthCheckModal';
 import { Header } from './components/Header';
 import { PlusIcon, SortIcon, LeafIcon } from './components/Icons';
 import { ExplorePlants } from './components/ExplorePlants';
 import { useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { SettingsPage } from './components/settings/SettingsPage';
+import { playClick, playDelete, playSuccess } from './utils/soundManager';
 
 type Page = 'dashboard' | 'explore' | 'settings';
 type SortOrder = 'default' | 'watering';
@@ -59,9 +60,10 @@ const App: React.FC = () => {
   const { currentUser } = useAuth();
   const [plants, setPlants] = useState<Plant[]>([]);
   const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [isAiTipModalOpen, setAiTipModalOpen] = useState(false);
+  const [isHealthCheckModalOpen, setHealthCheckModalOpen] = useState(false);
+  const [healthCheckImageUrl, setHealthCheckImageUrl] = useState<string | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
-  const [aiTip, setAiTip] = useState<AiCareTip | null>(null);
+  const [healthReport, setHealthReport] = useState<AiHealthReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -97,25 +99,27 @@ const App: React.FC = () => {
       }
     }
   }, [plants, currentUser]);
-
-  const handleGetAiTip = useCallback(async (plant: Plant, imageFile: File | null = null) => {
+  
+  const handleHealthCheck = useCallback(async (plant: Plant, imageFile: File) => {
     setSelectedPlant(plant);
-    setAiTipModalOpen(true);
-    setIsLoading(true);
+    setHealthReport(null);
     setError(null);
-    setAiTip(null);
+    
+    // Convert to data URL for preview and open modal immediately
+    const imageUrl = await fileToDataUrl(imageFile);
+    setHealthCheckImageUrl(imageUrl);
+    setHealthCheckModalOpen(true);
+    setIsLoading(true);
+    
     try {
-      let imageData: {data: string, mimeType: string} | undefined = undefined;
-      if (imageFile) {
-        imageData = await fileToBase64(imageFile);
-      }
-      const tipData = await getAiCareTip(plant, imageData);
-      setAiTip(tipData);
+      const imageData = await fileToBase64(imageFile);
+      const reportData = await getAiHealthCheck(plant, imageData);
+      setHealthReport(reportData);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to get AI care tip. Please try again.';
+       const errorMessage = err instanceof Error ? err.message : 'Failed to get AI Health Check. Please try again.';
       setError(errorMessage);
       console.error(err);
-      setAiTip(null);
+      setHealthReport(null);
     } finally {
       setIsLoading(false);
     }
@@ -143,17 +147,15 @@ const App: React.FC = () => {
       
       setPlants(prevPlants => [...prevPlants, newPlant]);
       setAddModalOpen(false);
+      playSuccess();
       
-      // Get a personalized tip based on the uploaded photo
-      handleGetAiTip(newPlant, imageFile);
     } catch (err) {
       setError('Failed to add plant. Could not get care info. Please try again.');
       console.error(err);
     } finally {
-      // The AI Tip modal has its own loading indicator, so we can turn this one off.
       setIsLoading(false);
     }
-  }, [handleGetAiTip]);
+  }, []);
 
   const handleWaterPlant = useCallback((plantId: string) => {
     setPlants(prevPlants =>
@@ -175,6 +177,7 @@ const App: React.FC = () => {
         return p;
       })
     );
+    playClick();
   }, []);
 
   const handleUpdatePlantNotes = useCallback((plantId: string, notes: string) => {
@@ -186,14 +189,35 @@ const App: React.FC = () => {
 
   const handleDeletePlant = useCallback((plantId: string) => {
     setPlants(prevPlants => prevPlants.filter(p => p.id !== plantId));
+    playDelete();
   }, []);
 
-  const closeAiTipModal = () => {
-    setAiTipModalOpen(false);
+  const handleAddGrowthEntry = useCallback((plantId: string, entry: Omit<GrowthEntry, 'id'>) => {
+    const newEntry: GrowthEntry = {
+      id: crypto.randomUUID(),
+      ...entry,
+    };
+    setPlants(prevPlants => 
+      prevPlants.map(p => {
+        if (p.id === plantId) {
+          const updatedHistory = [...(p.growthHistory || []), newEntry];
+          updatedHistory.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          return {...p, growthHistory: updatedHistory };
+        }
+        return p;
+      })
+    );
+    playClick();
+  }, []);
+
+  const closeHealthCheckModal = () => {
+    setHealthCheckModalOpen(false);
     setSelectedPlant(null);
-    setAiTip(null);
+    setHealthReport(null);
+    setError(null);
+    setHealthCheckImageUrl(null);
   };
-  
+
   const sortedPlants = useMemo(() => {
     if (sortOrder === 'watering') {
       return [...plants].sort((a, b) => {
@@ -251,7 +275,7 @@ const App: React.FC = () => {
               key={plant.id}
               plant={plant}
               onWater={handleWaterPlant}
-              onGetAiTip={handleGetAiTip}
+              onHealthCheck={handleHealthCheck}
               onDelete={handleDeletePlant}
               onUpdateNotes={handleUpdatePlantNotes}
             />
@@ -297,16 +321,19 @@ const App: React.FC = () => {
           error={error}
         />
       )}
-
-      {isAiTipModalOpen && selectedPlant && (
-        <AICareTipModal
-          plantName={selectedPlant.name}
-          tipData={aiTip}
+      
+      {isHealthCheckModalOpen && selectedPlant && (
+        <AIHealthCheckModal
+          plant={selectedPlant}
+          reportData={healthReport}
           isLoading={isLoading}
-          onClose={closeAiTipModal}
+          onClose={closeHealthCheckModal}
           error={error}
+          onUpdateNotes={handleUpdatePlantNotes}
+          imagePreviewUrl={healthCheckImageUrl}
         />
       )}
+
     </div>
   );
 };

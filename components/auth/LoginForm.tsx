@@ -50,7 +50,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignUp, onForgot
         </div>
         <div>
           <div className="flex justify-between items-center">
-            <label htmlFor="password"className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Password
             </label>
              <button type="button" onClick={onForgotPassword} className="text-sm text-green-600 hover:underline">

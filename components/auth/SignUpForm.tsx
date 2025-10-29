@@ -76,7 +76,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToLogin }) => {
           />
         </div>
         <div>
-          <label htmlFor="signup-password"className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor="signup-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Password
           </label>
           <input
@@ -93,7 +93,19 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToLogin }) => {
           </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+        {error && (
+          <p className="text-red-500 text-sm text-center">
+            {error}
+            {error.includes('already exists') && (
+              <>
+                {' '}
+                <button type="button" onClick={onSwitchToLogin} className="font-medium text-green-600 hover:underline">
+                  Log in instead?
+                </button>
+              </>
+            )}
+          </p>
+        )}
         
         <button
           type="submit"

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import type { Plant, ExplorePlant, AiCareTip } from '../types';
+import type { Plant, ExplorePlant, AiCareTip, AiHealthReport } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -83,6 +83,51 @@ const aiCareTipWithImageSchema = {
         }
     },
     required: ['isMatch']
+};
+
+const aiHealthCheckSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isMatch: {
+      type: Type.BOOLEAN,
+      description: "True if the uploaded image is a match for the plant, false otherwise."
+    },
+    mismatchMessage: {
+      type: Type.STRING,
+      description: "The exact message to show if the image is not a match. Only present if isMatch is false. For example: 'This photo doesn't seem to be a [Plant Name]. Please upload a picture of the correct plant for an accurate health check.'"
+    },
+    healthScore: {
+      type: Type.NUMBER,
+      description: 'A score from 1 to 100 representing the plant\'s overall health. Only present if isMatch is true.'
+    },
+    overallAssessment: {
+      type: Type.STRING,
+      description: 'A brief, one-sentence summary of the plant\'s condition. Only present if isMatch is true.'
+    },
+    positiveSigns: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'A list of positive observations. Only present if isMatch is true. If none, return an empty array.'
+    },
+    potentialIssues: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          issue: { type: Type.STRING, description: 'The name of the observed issue. e.g., "Yellowing Leaves", "Brown Spots", "Wilting".' },
+          possibleCause: { type: Type.STRING, description: 'The likely cause of the issue. e.g., "Overwatering or nutrient deficiency", "Fungal infection or sun scorch".' }
+        },
+        required: ['issue', 'possibleCause']
+      },
+      description: 'A list of potential problems observed. Only present if isMatch is true. If the plant is perfectly healthy, return an empty array.'
+    },
+    recommendations: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'A list of actionable recommendations. Only present if isMatch is true.'
+    }
+  },
+  required: ['isMatch']
 };
 
 
@@ -182,6 +227,43 @@ export const getAiCareTip = async (plant: Plant, imageData?: {data: string; mime
       }
     }
 };
+
+export const getAiHealthCheck = async (plant: Plant, imageData: {data: string; mimeType: string;}): Promise<AiHealthReport> => {
+  const imagePart = {
+    inlineData: {
+      mimeType: imageData.mimeType,
+      data: imageData.data,
+    },
+  };
+  const textPart = {
+    text: `Act as a plant health expert. Your response must be a JSON object.
+    1. **CRITICAL FIRST STEP:** Analyze the provided image and determine if it is a photo of a '${plant.name}'.
+    2. **If it is NOT a match:** Respond with 'isMatch' set to 'false' and a 'mismatchMessage' string. The message should be exactly: "This photo doesn't seem to be a ${plant.name}. Please upload a picture of the correct plant for an accurate health check."
+    3. **If it IS a match:** Respond with 'isMatch' set to 'true'. Then, provide a detailed health assessment based *only* on the visual information in the photo, filling out the healthScore, overallAssessment, positiveSigns, potentialIssues, and recommendations fields.`
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [imagePart, textPart] },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: aiHealthCheckSchema,
+      }
+    });
+    
+    const result = JSON.parse(response.text.trim());
+    return result as AiHealthReport;
+
+  } catch (error) {
+    console.error("Error fetching AI Health Check from Gemini API:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Failed to retrieve AI Health Check for ${plant.name}.`);
+  }
+};
+
 
 
 export const getPopularPlants = async (): Promise<ExplorePlant[]> => {

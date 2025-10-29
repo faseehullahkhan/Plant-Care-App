@@ -17,7 +17,7 @@ export const ExplorePlantDetailModal: React.FC<ExplorePlantDetailModalProps> = (
         className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg transform transition-all animate-fade-in-up"
         onClick={(e) => e.stopPropagation()} // Prevent modal from closing when clicking inside
       >
-        <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-slate-700">
+        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <LeafIcon className="w-6 h-6 text-green-600" />
             <h2 className="text-xl font-semibold capitalize text-gray-800 dark:text-gray-100">{plant.name}</h2>
@@ -26,7 +26,7 @@ export const ExplorePlantDetailModal: React.FC<ExplorePlantDetailModalProps> = (
             <XIcon className="w-6 h-6" />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <p className="text-gray-600 dark:text-gray-400 mb-6">{plant.description}</p>
           
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Care Guide</h3>
@@ -54,7 +54,7 @@ export const ExplorePlantDetailModal: React.FC<ExplorePlantDetailModalProps> = (
             </div>
           </div>
         </div>
-        <div className="px-6 py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-700 flex justify-end">
+        <div className="px-4 sm:px-6 py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-700 flex justify-end">
           <button
             onClick={onClose}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

@@ -200,9 +200,16 @@ export const ExplorePlants: React.FC = () => {
         <button
           type="submit"
           disabled={isSearching || !searchTerm.trim()}
-          className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 disabled:bg-green-400 dark:disabled:bg-green-800 flex items-center justify-center"
+          className="px-4 sm:px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 disabled:bg-green-400 dark:disabled:bg-green-800 flex items-center justify-center"
         >
-          {isSearching ? <LoaderIcon className="w-6 h-6 animate-spin" /> : 'Search'}
+          {isSearching ? (
+            <LoaderIcon className="w-5 h-5 animate-spin" />
+          ) : (
+             <>
+                <SearchIcon className="w-5 h-5 sm:hidden" />
+                <span className="hidden sm:inline">Search</span>
+            </>
+          )}
         </button>
       </form>
 

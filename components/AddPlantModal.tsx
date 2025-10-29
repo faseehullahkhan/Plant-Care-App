@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { LeafIcon, XIcon, LoaderIcon } from './Icons';
 
@@ -46,7 +48,7 @@ export const AddPlantModal: React.FC<AddPlantModalProps> = ({ onClose, onAddPlan
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-md transform transition-all animate-fade-in-up">
-        <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-slate-700">
+        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <LeafIcon className="w-6 h-6 text-green-600" />
             <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Add a New Plant</h2>
@@ -56,7 +58,7 @@ export const AddPlantModal: React.FC<AddPlantModalProps> = ({ onClose, onAddPlan
           </button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="mb-4">
                 <label htmlFor="plant-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Plant Name
@@ -123,7 +125,7 @@ export const AddPlantModal: React.FC<AddPlantModalProps> = ({ onClose, onAddPlan
             
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
-          <div className="px-6 py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
+          <div className="px-4 sm:px-6 py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
