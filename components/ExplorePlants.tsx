@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExplorePlant } from '../types';
-import { getPopularPlants, searchPlants } from '../services/geminiService';
+import { getPopularPlants, searchPlants, getPlantImage } from '../services/geminiService';
 import { LoaderIcon, SunIcon, ThermometerIcon, WaterDropIcon, SearchIcon, LeafIcon, XIcon } from './Icons';
 import { ExplorePlantDetailModal } from './ExplorePlantDetailModal';
 
@@ -16,7 +16,7 @@ const ExplorePlantCard: React.FC<ExplorePlantCardProps> = ({ plant, onClick }) =
   >
     <div className="relative h-48 bg-gray-100 dark:bg-slate-700">
       {plant.imageUrl ? (
-        <img src={plant.imageUrl} alt={plant.name} className="w-full h-full object-cover" />
+        <img src={plant.imageUrl} alt={plant.name} className="w-full h-full object-cover animate-fade-in" />
       ) : (
         <div className="flex items-center justify-center w-full h-full">
             <LeafIcon className="w-12 h-12 text-gray-300 dark:text-slate-500" />
@@ -105,12 +105,23 @@ export const ExplorePlants: React.FC = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const plants = await getPopularPlants();
+        const plants = await getPopularPlants(); // Fetches text data only
         setPopularPlants(plants);
+        setIsLoading(false); // Render placeholders
+
+        // Fetch images in the background
+        plants.forEach(plant => {
+          getPlantImage(plant.name)
+            .then(imageUrl => {
+              if (imageUrl) {
+                setPopularPlants(prev => prev.map(p => p.name === plant.name ? { ...p, imageUrl } : p));
+              }
+            })
+            .catch(err => console.error(`Failed to fetch image for ${plant.name}:`, err));
+        });
       } catch (err) {
         setError('Could not fetch plant ideas. Please try again later.');
         console.error(err);
-      } finally {
         setIsLoading(false);
       }
     };
@@ -128,12 +139,23 @@ export const ExplorePlants: React.FC = () => {
       setIsSearching(true);
       setError(null);
       try {
-        const results = await searchPlants(debouncedSearchTerm.trim());
+        const results = await searchPlants(debouncedSearchTerm.trim()); // Fetches text data only
         setSearchResults(results);
+        setIsSearching(false); // Render placeholders
+
+        // Fetch images for search results in the background
+        results.forEach(plant => {
+          getPlantImage(plant.name)
+            .then(imageUrl => {
+              if (imageUrl) {
+                setSearchResults(prev => prev?.map(p => p.name === plant.name ? { ...p, imageUrl } : p) ?? null);
+              }
+            })
+            .catch(err => console.error(`Failed to fetch search image for ${plant.name}:`, err));
+        });
       } catch (err) {
         setError('An error occurred during the search. Please try again.');
         setSearchResults(null);
-      } finally {
         setIsSearching(false);
       }
     };
@@ -145,11 +167,8 @@ export const ExplorePlants: React.FC = () => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center py-20">
-          <div className="flex flex-col items-center gap-2 text-gray-500 dark:text-gray-400">
-            <LoaderIcon className="w-10 h-10 animate-spin text-green-600"/>
-            <span className="text-lg">Fetching plant inspiration...</span>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => <ExplorePlantCardSkeleton key={i} />)}
         </div>
       );
     }

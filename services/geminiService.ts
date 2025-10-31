@@ -278,7 +278,7 @@ export const getAiHealthCheck = async (plant: Plant, imageData: {data: string; m
 };
 
 
-const getPlantImage = async (plantName: string): Promise<string> => {
+export const getPlantImage = async (plantName: string): Promise<string> => {
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
@@ -325,16 +325,11 @@ export const getPopularPlants = async (): Promise<ExplorePlant[]> => {
     const jsonText = response.text.trim();
     const popularPlantsData: Omit<ExplorePlant, 'imageUrl'>[] = JSON.parse(jsonText);
 
-    const plantsWithImages: ExplorePlant[] = [];
-    for (const plantData of popularPlantsData) {
-        const imageUrl = await getPlantImage(plantData.name);
-        plantsWithImages.push({
-            ...plantData,
-            imageUrl,
-        });
-    }
-
-    return plantsWithImages;
+    // Return plants with empty imageUrl, to be populated by the frontend
+    return popularPlantsData.map(plant => ({
+      ...plant,
+      imageUrl: '',
+    }));
 
   } catch (error) {
     console.error("Error fetching popular plants from Gemini API:", error);
@@ -366,17 +361,12 @@ export const searchPlants = async (searchTerm: string): Promise<ExplorePlant[]> 
     if (searchResultsData.length === 0) {
         return [];
     }
-
-    const plantsWithImages: ExplorePlant[] = [];
-    for (const plantData of searchResultsData) {
-        const imageUrl = await getPlantImage(plantData.name);
-        plantsWithImages.push({
-            ...plantData,
-            imageUrl,
-        });
-    }
-
-    return plantsWithImages;
+    
+    // Return plants with empty imageUrl, to be populated by the frontend
+    return searchResultsData.map(plant => ({
+      ...plant,
+      imageUrl: '',
+    }));
 
   } catch (error) {
     console.error(`Error searching for plant "${searchTerm}" from Gemini API:`, error);
