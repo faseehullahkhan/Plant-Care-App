@@ -290,12 +290,19 @@ const getPlantImage = async (plantName: string): Promise<string> => {
             },
         });
         
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                const base64ImageBytes: string = part.inlineData.data;
-                return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+        const firstCandidate = response?.candidates?.[0];
+        // Safely access nested properties to prevent crashes
+        if (firstCandidate?.content?.parts) {
+            for (const part of firstCandidate.content.parts) {
+                if (part.inlineData) {
+                    const base64ImageBytes: string = part.inlineData.data;
+                    return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+                }
             }
         }
+        
+        // If no image part is found, log the situation for easier debugging.
+        console.warn(`No image data found in API response for "${plantName}". This might be due to safety filters or other API issues.`, response);
         throw new Error("No image data found in response.");
 
     } catch (error) {
@@ -318,15 +325,14 @@ export const getPopularPlants = async (): Promise<ExplorePlant[]> => {
     const jsonText = response.text.trim();
     const popularPlantsData: Omit<ExplorePlant, 'imageUrl'>[] = JSON.parse(jsonText);
 
-    const plantsWithImages = await Promise.all(
-        popularPlantsData.map(async (plant) => {
-            const imageUrl = await getPlantImage(plant.name);
-            return {
-                ...plant,
-                imageUrl,
-            };
-        })
-    );
+    const plantsWithImages: ExplorePlant[] = [];
+    for (const plantData of popularPlantsData) {
+        const imageUrl = await getPlantImage(plantData.name);
+        plantsWithImages.push({
+            ...plantData,
+            imageUrl,
+        });
+    }
 
     return plantsWithImages;
 
@@ -336,52 +342,44 @@ export const getPopularPlants = async (): Promise<ExplorePlant[]> => {
   }
 };
 
-export const searchPlantByName = async (plantName: string): Promise<ExplorePlant | null> => {
-    const prompt = `Find information for a plant named "${plantName}".
-- First, verify if this is a real, known plant.
-- If it is a real plant, respond with JSON for the 'plantData' and set 'plantFound' to true.
-- If it is not a real plant, respond with JSON setting 'plantFound' to false.
-- CRITICAL: If the plant is found, you MUST ALSO generate a vibrant, photorealistic image of the plant in a simple pot, against a clean, light gray background.`;
+export const searchPlants = async (searchTerm: string): Promise<ExplorePlant[]> => {
+  const prompt = `Search for indoor plants related to the term "${searchTerm}". Return a list of up to 6 matching plants. If the term is very specific and matches only one plant, return just that one. If no relevant plants are found, return an empty array. For each plant, provide its name, a short one-sentence description, and basic care info (sunlight, watering, temperature).`;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                responseModalities: [Modality.IMAGE],
-            }
-        });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: popularPlantsSchema,
+      }
+    });
 
-        const responseText = response.text;
-        if (!responseText) {
-            console.error("Gemini API response for plant search did not contain text:", JSON.stringify(response, null, 2));
-            throw new Error("Model returned an invalid response (no text found).");
-        }
-        
-        let jsonText = responseText.trim();
-        
-        // More robust JSON extraction from markdown code blocks
-        const jsonMatch = jsonText.match(/```(json)?\s*([\s\S]*?)\s*```/);
-        if (jsonMatch && jsonMatch[2]) {
-            jsonText = jsonMatch[2];
-        }
-        
-        const result = JSON.parse(jsonText);
-
-        if (result.plantFound && result.plantData) {
-            let imageUrl = '';
-            for (const part of response.candidates[0].content.parts) {
-                if (part.inlineData) {
-                    imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                    break;
-                }
-            }
-            
-            return { ...result.plantData, imageUrl };
-        }
-        return null;
-    } catch (error) {
-        console.error(`Error searching for plant "${plantName}" from Gemini API:`, error);
-        throw new Error(`Failed to search for plant: ${plantName}.`);
+    const jsonText = response.text.trim();
+     // Handle cases where the model might return non-JSON text despite instructions
+    if (!jsonText.startsWith('[')) {
+        console.warn("Gemini API returned non-array for plant search:", jsonText);
+        return [];
     }
+    const searchResultsData: Omit<ExplorePlant, 'imageUrl'>[] = JSON.parse(jsonText);
+
+    if (searchResultsData.length === 0) {
+        return [];
+    }
+
+    const plantsWithImages: ExplorePlant[] = [];
+    for (const plantData of searchResultsData) {
+        const imageUrl = await getPlantImage(plantData.name);
+        plantsWithImages.push({
+            ...plantData,
+            imageUrl,
+        });
+    }
+
+    return plantsWithImages;
+
+  } catch (error) {
+    console.error(`Error searching for plant "${searchTerm}" from Gemini API:`, error);
+    throw new Error(`Failed to search for plant: ${searchTerm}.`);
+  }
 };

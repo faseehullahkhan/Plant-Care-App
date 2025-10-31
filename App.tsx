@@ -4,6 +4,7 @@ import { getPlantCareInfo, getAiHealthCheck } from './services/geminiService';
 import { PlantCard } from './components/PlantCard';
 import { AddPlantModal } from './components/AddPlantModal';
 import { AIHealthCheckModal } from './components/AIHealthCheckModal';
+import { PlantDetailModal } from './components/PlantDetailModal';
 import { Header } from './components/Header';
 import { PlusIcon, SortIcon, LeafIcon } from './components/Icons';
 import { ExplorePlants } from './components/ExplorePlants';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
   const [isHealthCheckModalOpen, setHealthCheckModalOpen] = useState(false);
   const [healthCheckImageUrl, setHealthCheckImageUrl] = useState<string | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  const [detailedPlant, setDetailedPlant] = useState<Plant | null>(null);
   const [healthReport, setHealthReport] = useState<AiHealthReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,6 +187,16 @@ const App: React.FC = () => {
       prevPlants.map(p => (p.id === plantId ? { ...p, notes } : p))
     );
   }, []);
+  
+  const handleUpdatePlantNickname = useCallback((plantId: string, nickname: string) => {
+    const trimmedNickname = nickname.trim();
+    setPlants(prevPlants =>
+        prevPlants.map(p => (p.id === plantId ? { ...p, nickname: trimmedNickname || undefined } : p))
+    );
+    // Also update the detailed plant if it's the one being edited
+    setDetailedPlant(prev => prev && prev.id === plantId ? {...prev, nickname: trimmedNickname || undefined} : prev);
+    playClick();
+  }, []);
 
 
   const handleDeletePlant = useCallback((plantId: string) => {
@@ -207,6 +219,15 @@ const App: React.FC = () => {
         return p;
       })
     );
+     // Also update the detailed plant if it's the one being edited
+    setDetailedPlant(prev => {
+        if (prev && prev.id === plantId) {
+            const updatedHistory = [...(prev.growthHistory || []), newEntry];
+            updatedHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            return { ...prev, growthHistory: updatedHistory };
+        }
+        return prev;
+    });
     playClick();
   }, []);
 
@@ -278,6 +299,7 @@ const App: React.FC = () => {
               onHealthCheck={handleHealthCheck}
               onDelete={handleDeletePlant}
               onUpdateNotes={handleUpdatePlantNotes}
+              onViewDetails={() => setDetailedPlant(plant)}
             />
           ))}
         </div>
@@ -331,6 +353,15 @@ const App: React.FC = () => {
           error={error}
           onUpdateNotes={handleUpdatePlantNotes}
           imagePreviewUrl={healthCheckImageUrl}
+        />
+      )}
+
+      {detailedPlant && (
+        <PlantDetailModal
+          plant={detailedPlant}
+          onClose={() => setDetailedPlant(null)}
+          onAddGrowthEntry={handleAddGrowthEntry}
+          onUpdateNickname={handleUpdatePlantNickname}
         />
       )}
 

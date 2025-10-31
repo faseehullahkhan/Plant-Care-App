@@ -9,9 +9,10 @@ interface PlantCardProps {
   onHealthCheck: (plant: Plant, imageFile: File) => void;
   onDelete: (id: string) => void;
   onUpdateNotes: (id: string, notes: string) => void;
+  onViewDetails: () => void;
 }
 
-export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCheck, onDelete, onUpdateNotes }) => {
+export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCheck, onDelete, onUpdateNotes, onViewDetails }) => {
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [currentNotes, setCurrentNotes] = useState(plant.notes || '');
@@ -53,7 +54,8 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCh
     setIsEditingNotes(false);
   };
 
-  const handleHealthCheckClick = () => {
+  const handleHealthCheckClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     healthCheckFileInputRef.current?.click();
   };
 
@@ -125,25 +127,32 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCh
       )}
       
       <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg hover:shadow-2xl dark:shadow-black/20 overflow-hidden flex flex-col transition-all duration-500 transform hover:-translate-y-2 group ${cardBorderClass}`}>
-        <div className="relative">
-            <img src={plant.imageUrl} alt={plant.name} className="w-full h-48 object-cover" />
-            <div className="absolute top-2 right-2">
-              <button 
-                onClick={() => setIsDeleteConfirmVisible(true)}
-                className="p-2 bg-white/50 dark:bg-black/50 backdrop-blur-sm rounded-full text-gray-700 dark:text-gray-300 hover:bg-red-500 hover:text-white dark:hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                aria-label="Delete plant"
-              >
-                <TrashIcon className="w-5 h-5"/>
-              </button>
+        <div 
+            className="cursor-pointer"
+            onClick={onViewDetails}
+            aria-label={`View details for ${plant.nickname || plant.name}`}
+        >
+            <div className="relative">
+                <img src={plant.imageUrl} alt={plant.name} className="w-full h-48 object-cover" />
+                <div className="absolute top-2 right-2">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setIsDeleteConfirmVisible(true); }}
+                    className="p-2 bg-white/50 dark:bg-black/50 backdrop-blur-sm rounded-full text-gray-700 dark:text-gray-300 hover:bg-red-500 hover:text-white dark:hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    aria-label="Delete plant"
+                >
+                    <TrashIcon className="w-5 h-5"/>
+                </button>
+                </div>
             </div>
-        </div>
-        
-        {/* Top Content Area */}
-        <div className="p-5">
-            <h3 className="text-xl font-bold capitalize truncate text-gray-900 dark:text-white">{plant.name}</h3>
-            <div className={`mt-2 text-sm font-semibold px-3 py-1 rounded-full text-center flex items-center justify-center gap-2 ${wateringStatusColor()}`}>
-                {isOverdue && <WarningIcon className="w-4 h-4" />}
-                <span>{wateringStatusText()}</span>
+            
+            {/* Top Content Area */}
+            <div className="p-5">
+                <h3 className="text-xl font-bold capitalize truncate text-gray-900 dark:text-white">{plant.nickname || plant.name}</h3>
+                {plant.nickname && <p className="text-sm text-gray-500 dark:text-gray-400 capitalize -mt-1">{plant.name}</p>}
+                <div className={`mt-2 text-sm font-semibold px-3 py-1 rounded-full text-center flex items-center justify-center gap-2 ${wateringStatusColor()}`}>
+                    {isOverdue && <WarningIcon className="w-4 h-4" />}
+                    <span>{wateringStatusText()}</span>
+                </div>
             </div>
         </div>
         
@@ -171,7 +180,7 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCh
 
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                     <button
-                    onClick={() => setIsHistoryVisible(!isHistoryVisible)}
+                    onClick={(e) => { e.stopPropagation(); setIsHistoryVisible(!isHistoryVisible); }}
                     className="w-full flex items-center justify-between text-left text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white focus:outline-none"
                     aria-expanded={isHistoryVisible}
                     >
@@ -190,7 +199,7 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCh
                     </button>
                     
                     {isHistoryVisible && (
-                        <div className="mt-2 pl-8 max-h-24 overflow-y-auto pr-2 animate-fade-in">
+                        <div className="mt-2 pl-8 max-h-24 overflow-y-auto pr-2 animate-fade-in" onClick={(e) => e.stopPropagation()}>
                         <ul className="list-disc list-inside text-sm text-gray-500 dark:text-gray-400 space-y-1">
                             {sortedHistory.map((date, index) => (
                             <li key={index}>
@@ -207,7 +216,7 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCh
                 </div>
 
                 {/* Notes Section */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <DocumentTextIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -256,7 +265,7 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant, onWater, onHealthCh
                 </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
                 <button
                 onClick={() => onWater(plant.id)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-green-600 text-green-600 dark:text-green-400 dark:border-green-500 font-semibold rounded-lg hover:bg-green-600 hover:text-white dark:hover:bg-green-500 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300"

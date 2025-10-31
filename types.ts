@@ -6,8 +6,9 @@ export interface GrowthEntry {
 }
 
 export interface Plant {
-  id: string;
+  id:string;
   name: string;
+  nickname?: string;
   wateringFrequency: number; // in days
   sunlight: string; // e.g., 'Bright, indirect light'
   temperature: string; // e.g., '18-29°C'

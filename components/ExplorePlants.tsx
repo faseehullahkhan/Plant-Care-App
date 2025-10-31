@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExplorePlant } from '../types';
-import { getPopularPlants, searchPlantByName } from '../services/geminiService';
-import { LoaderIcon, SunIcon, ThermometerIcon, WaterDropIcon, SearchIcon, LeafIcon } from './Icons';
+import { getPopularPlants, searchPlants } from '../services/geminiService';
+import { LoaderIcon, SunIcon, ThermometerIcon, WaterDropIcon, SearchIcon, LeafIcon, XIcon } from './Icons';
 import { ExplorePlantDetailModal } from './ExplorePlantDetailModal';
 
 interface ExplorePlantCardProps {
@@ -53,6 +53,42 @@ const ExplorePlantCard: React.FC<ExplorePlantCardProps> = ({ plant, onClick }) =
   </button>
 );
 
+const ExplorePlantCardSkeleton: React.FC = () => (
+  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-slate-700 animate-pulse">
+    <div className="h-48 bg-gray-300 dark:bg-slate-700" />
+    <div className="p-5">
+      <div className="h-6 w-3/4 bg-gray-300 dark:bg-slate-700 rounded mb-3" />
+      <div className="h-4 w-full bg-gray-300 dark:bg-slate-700 rounded" />
+      <div className="h-4 w-5/6 bg-gray-300 dark:bg-slate-700 rounded mt-2" />
+    </div>
+    <div className="p-5 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-700 space-y-4">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="flex items-start gap-3">
+          <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-slate-700 flex-shrink-0 mt-0.5" />
+          <div className="w-full space-y-1.5">
+            <div className="h-3 w-1/4 bg-gray-300 dark:bg-slate-700 rounded" />
+            <div className="h-3 w-1/2 bg-gray-300 dark:bg-slate-700 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const useDebounce = (value: string, delay: number): string => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+};
+
+
 export const ExplorePlants: React.FC = () => {
   const [popularPlants, setPopularPlants] = useState<ExplorePlant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +97,8 @@ export const ExplorePlants: React.FC = () => {
   const [selectedPlant, setSelectedPlant] = useState<ExplorePlant | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<ExplorePlant[] | null>(null);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   useEffect(() => {
     const fetchPopularPlants = async () => {
@@ -79,37 +117,30 @@ export const ExplorePlants: React.FC = () => {
     fetchPopularPlants();
   }, []);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    if (value === '') {
+  useEffect(() => {
+    const handleSearch = async () => {
+      if (!debouncedSearchTerm.trim()) {
         setSearchResults(null);
         setError(null);
-    }
-  };
+        return;
+      }
 
-  const handleSearchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) {
-      setSearchResults(null);
-      return;
-    }
+      setIsSearching(true);
+      setError(null);
+      try {
+        const results = await searchPlants(debouncedSearchTerm.trim());
+        setSearchResults(results);
+      } catch (err) {
+        setError('An error occurred during the search. Please try again.');
+        setSearchResults(null);
+      } finally {
+        setIsSearching(false);
+      }
+    };
 
-    setIsSearching(true);
-    setError(null);
-    setSearchResults([]); // Clear previous results to signify a search is in progress
-    
-    try {
-      const result = await searchPlantByName(searchTerm.trim());
-      setSearchResults(result ? [result] : []);
-    } catch (err) {
-      setError('An error occurred during the search. Please try again.');
-      console.error(err);
-      setSearchResults(null); // On error, revert to showing popular plants list
-    } finally {
-      setIsSearching(false);
-    }
-  };
+    handleSearch();
+  }, [debouncedSearchTerm]);
+
 
   const renderContent = () => {
     if (isLoading) {
@@ -131,36 +162,36 @@ export const ExplorePlants: React.FC = () => {
         </div>
       );
     }
-
+    
     if (isSearching) {
       return (
-         <div className="flex justify-center items-center py-20">
-          <div className="flex flex-col items-center gap-2 text-gray-500 dark:text-gray-400">
-            <LoaderIcon className="w-10 h-10 animate-spin text-green-600"/>
-            <span className="text-lg">Searching for "{searchTerm}"...</span>
-          </div>
+         <div className="animate-fade-in">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+              Searching for "{searchTerm}"...
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => <ExplorePlantCardSkeleton key={i} />)}
+            </div>
         </div>
       );
     }
     
     const displayedPlants = searchResults !== null ? searchResults : popularPlants;
+    const isShowingSearchResults = searchResults !== null;
 
-    if (searchResults !== null && searchResults.length === 0) {
+    if (isShowingSearchResults && displayedPlants.length === 0) {
         return (
-          <div className="text-center py-10 px-6">
+          <div className="text-center py-10 px-6 animate-fade-in">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">No Results for "{searchTerm}"</h3>
             <p className="mt-2 text-gray-600 dark:text-gray-400 max-w-lg mx-auto">
-              Please check the spelling or try another name. In the meantime, why not explore one of these popular plants?
+              We couldn't find any plants matching your search. Try a different name or check for typos.
             </p>
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-in">
-              {popularPlants.map((plant) => (
-                <ExplorePlantCard 
-                  key={plant.name} 
-                  plant={plant} 
-                  onClick={() => setSelectedPlant(plant)}
-                />
-              ))}
-            </div>
+             <button
+              onClick={() => setSearchTerm('')}
+              className="mt-6 inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+            >
+              Clear Search & View Popular Plants
+            </button>
           </div>
         );
     }
@@ -169,7 +200,7 @@ export const ExplorePlants: React.FC = () => {
     return (
        <div className="animate-fade-in">
         <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
-            {searchResults !== null ? 'Search Result' : 'Popular Plants'}
+            {isShowingSearchResults ? 'Search Results' : 'Popular Plants'}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-in">
           {displayedPlants.map((plant) => (
@@ -193,8 +224,8 @@ export const ExplorePlants: React.FC = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSearchSubmit} className="mb-8 max-w-lg mx-auto flex gap-2">
-        <div className="relative flex-grow">
+      <div className="mb-8 max-w-lg mx-auto">
+        <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <SearchIcon className="h-5 w-5 text-gray-400" />
           </div>
@@ -202,25 +233,25 @@ export const ExplorePlants: React.FC = () => {
             type="text"
             placeholder="Search for any plant in the world..."
             value={searchTerm}
-            onChange={handleSearchChange}
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 sm:text-sm shadow-sm"
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 sm:text-sm shadow-sm transition-colors"
           />
-        </div>
-        <button
-          type="submit"
-          disabled={isSearching || !searchTerm.trim()}
-          className="px-4 sm:px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 disabled:bg-green-400 dark:disabled:bg-green-800 flex items-center justify-center"
-        >
-          {isSearching ? (
-            <LoaderIcon className="w-5 h-5 animate-spin" />
-          ) : (
-             <>
-                <SearchIcon className="w-5 h-5 sm:hidden" />
-                <span className="hidden sm:inline">Search</span>
-            </>
+          {searchTerm && !isSearching && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              aria-label="Clear search"
+            >
+              <XIcon className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+            </button>
           )}
-        </button>
-      </form>
+          {isSearching && (
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <LoaderIcon className="w-5 h-5 text-gray-400 animate-spin" />
+            </div>
+          )}
+        </div>
+      </div>
 
       {renderContent()}
 
